@@ -1,0 +1,12 @@
+credentials:
+  username: your.email@mendix.com
+  apikey: YOUR_PERSONAL_ACCESS_TOKEN_HERE
+
+# The Mendix online project that will receive the OllamaConnector module
+project:
+  name: YourProjectName
+  id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+# A working copy ID (filled in automatically by --createwc flag, or set manually)
+workingcopy:
+  current: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx

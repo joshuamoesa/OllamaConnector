@@ -1,0 +1,22 @@
+{
+  "name": "ollama-connector-sdk",
+  "version": "1.0.0",
+  "description": "Mendix SDK script to build the OllamaConnector module for GenAI Commons",
+  "scripts": {
+    "build": "tsc",
+    "create": "tsc && node ./dist/create-module.js",
+    "create:wc": "tsc && node ./dist/create-module.js --createwc",
+    "list:wc": "tsc && node ./dist/list-wc.js"
+  },
+  "dependencies": {
+    "mendixmodelsdk": "^4.108.0",
+    "mendixplatformsdk": "^5.2.0",
+    "js-yaml": "^4.1.0",
+    "commander": "^11.0.0"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.3"
+  }
+}
