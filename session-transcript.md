@@ -5124,3 +5124,212 @@ Update Claude.md. Also parse the json file to a full markdown file.
 Good, the extraction works. Now let me generate both the full transcript and update CLAUDE.md in parallel.
 
 ---
+
+---
+
+# Session Continuation — 2026-03-29
+
+*The following topics were covered after the original transcript was generated.*
+
+---
+
+## Topic: Module folder structure
+
+**You:** Give me a suggestion how I would structure the OllamaConnector module folder
+
+**Claude:**
+
+Extracted the real folder structure from all connectors in the AIChatBot project by parsing the `.mxunit` files. Key findings:
+
+- **OpenAIConnector**: `[Private]` (all implementation) + `[USE_ME]` (public API) + `[_Docs]`
+- **MistralConnector**: same pattern, compact — 1 public microflow + 1 page in `[USE_ME]`
+- **GenAICommons**: large module, `[_Private]` + feature folders (`[Text & Files]`, `[Knowledge Bases]`, etc.)
+- **ConversationalUI**: `[Private]` + `[USE_ME]` + `[Layouts]` + `[_Docs]`
+
+Recommended OllamaConnector structure:
+
+```
+OllamaConnector/
+├── [USE_ME]/
+│   ├── [Action Microflow]/
+│   │   └── ChatContext_ChatWithHistory_ActionMicroflow_Ollama
+│   └── [Configuration]/
+│       ├── OllamaConfiguration_Overview  (Page)
+│       └── OllamaConfiguration_Edit      (Page)
+├── [Private]/
+│   ├── [ChatCompletions]/
+│   │   ├── ACT_ChatCompletions_WithHistory
+│   │   └── SUB_HandleOllamaError
+│   ├── [Configuration]/
+│   │   ├── OllamaConfiguration_Save
+│   │   └── OllamaConfiguration_Validate
+│   └── [Resources]/
+│       ├── ExportMapping_OllamaRequest
+│       ├── ImportMapping_OllamaResponse
+│       ├── JSONStructure_OllamaRequest
+│       └── JSONStructure_OllamaResponse
+├── [Resources]/
+│   └── [AfterStartup]/
+│       └── ASU_OllamaConnector_Initialize
+├── [_Docs]/
+├── Ollama_BaseURL   (Constant)
+└── Ollama_DefaultModel  (Constant)
+```
+
+Key rule: `[USE_ME]` = what an app developer touches. `[Private]` = everything else.
+`ACT_ChatCompletions_WithHistory` belongs in `[Private]` — app developers never call it directly, only the wrapper does.
+
+---
+
+## Topic: _Docs README page
+
+**You:** I want to create a ReadMe for in the Mendix project → _Docs folder page
+
+**Claude:**
+
+Extracted the content of OpenAIConnector and MistralConnector `_Docs` folders. Both use:
+- A **`ReadMe` Snippet** with structured text (description, general setup steps, operations, more information)
+- A **`Resources_Overview` Page** with links to documentation
+- An **empty versioned subfolder** (`v8.0.1` / `v1.0.0`)
+
+Drafted OllamaConnector `[_Docs]` content:
+
+**ReadMe Snippet content:**
+- Description: connects to Ollama open-source local LLM runtime, implements GenAI Commons interface
+- General setup: 5 steps (Ollama running, module role, AfterStartup, navigation page, ConversationalUI ProviderConfig)
+- Chat Completions: use `ChatContext_ChatWithHistory_ActionMicroflow_Ollama` as `ProviderConfig.ActionMicroflow`
+- Image Generations: not supported
+- Embeddings: not supported in this version
+- More information: GitHub repo + Ollama docs + GenAI Commons docs
+
+**Resources_Overview Page links:**
+- GenAI Commons Mendix Docs
+- GitHub OllamaConnector
+- Ollama API Reference
+- Ollama Model Library
+- ConversationalUI Mendix Docs
+
+**How to create in Studio Pro:**
+1. Right-click module → Add folder → `_Docs`
+2. Add subfolder `v1.0.0` (leave empty)
+3. Right-click `_Docs` → Add other → Snippet → name `ReadMe`
+4. Right-click `_Docs` → Add page → name `Resources_Overview`, layout `Atlas_Core.Atlas_Default.Main`
+
+---
+
+## Topic: Reading App.mpr
+
+**You:** I have the Mendix checkout project here /Users/joshua.moesa/workdir/Mendix/AIChatBot-Ollama-main_2. Can you read the content of App.mpr?
+
+**Claude:**
+
+`.mpr` files are SQLite 3 databases (confirmed via `file` command). The database has three tables: `Unit`, `_MetaData`, `_Transaction`. The actual model content is stored as binary-serialized `.mxunit` files in the `mprcontents/` directory alongside the `.mpr` file.
+
+Parsed all 2,641 `.mxunit` files using Python + `strings` command to extract `$Type` and `Name` fields.
+
+**Project inventory (Mendix 11.8.0):**
+- 20 modules, 929 microflows, 90 pages, 282 entities, 145 Java actions, 69 enumerations, 38 nanoflows
+
+**Modules:** `MyFirstAIBot`, `ConversationalUI`, `GenAICommons`, `OllamaConnector`, `OpenAIConnector`, `MistralConnector`, `MxGenAIConnector`, `AgentCommons`, `MCPClient`, `PDFExtraction`, `AWSAuthentication`, `Encryption`, `CommunityCommons`, `NanoflowCommons`, `DataWidgets`, `Atlas_Core`, `Atlas_Web_Content`, `Administration`, `FeedbackModule`, `WebActions`
+
+Notable: `MCPClient` module present — the app can connect to MCP servers (Model Context Protocol).
+
+---
+
+## Topic: OllamaConnector vs OpenAI Connector with Ollama
+
+**You:** So the Mendix OpenAI Connector works with Ollama. What is different with this approach?
+
+**Claude:**
+
+Ollama exposes two APIs:
+- **OpenAI shim**: `http://localhost:11434/v1/chat/completions` — OpenAI-compatible translation layer
+- **Native API**: `http://localhost:11434/api/chat` — Ollama's own format
+
+The OpenAI Connector uses the shim (requires a dummy API key, e.g. `'ollama'`). Your OllamaConnector uses the native API.
+
+**A shim** is a thin translation layer — Ollama receives OpenAI-shaped requests, translates them internally, and returns OpenAI-shaped responses. The caller never knows it's talking to Ollama.
+
+**Ollama-native features** only accessible via the native API:
+- Model management: `GET /api/tags` (list models), `POST /api/pull` (download model), `DELETE /api/delete`, `POST /api/show`, `GET /api/ps` (running models)
+- `keep_alive` — control how long model stays in RAM
+- `format: "json"` — force structured JSON output
+- `num_ctx` — context window size per request
+- `num_gpu`, `num_thread` — hardware control
+
+**Honest assessment**: for most use cases the OpenAI Connector pointed at Ollama is simpler. The OllamaConnector is valuable if you need model management UI, structured JSON output, memory control, or as a learning exercise in building GenAI Commons connectors.
+
+---
+
+## Topic: DeployedModel Microflow field empty
+
+**You:** I've created overview pages for Ollama Deployed model. When I open one object, Microflow is empty.
+
+**Claude:**
+
+The `Microflow` field on `GenAICommons.DeployedModel` stores the qualified connector microflow name. It's set by `GenAICommons.DeployedModel_SetMicroflow`. It being empty means either:
+1. `ASU_OllamaConnector_Initialize` didn't run
+2. The record existed before `SetMicroflow` was added (guard skipped it)
+3. **Missing Commit after `SetMicroflow`** ← actual cause
+
+**Root cause discovered**: no Commit activity after the `SetMicroflow` Java action call. The value was set in memory but never written to the database.
+
+---
+
+## Topic: Commit only available for ExistingOllamaDeployedModel
+
+**You:** In the commit activity, I could only commit the existing deployedmodel. How come?
+
+**Claude:**
+
+**Variable scoping across exclusive split branches.** Mendix only makes a variable available after a merge if it was defined in **both** branches with the **same name**.
+
+The flow had:
+- Branch 1 (retrieve): output variable `ExistingOllamaDeployedModel`
+- Branch 2 (create): output variable `NewOllamaDeployedModel` (different name)
+
+After the merge, only `ExistingOllamaDeployedModel` was visible to the Commit — because it was the only variable defined in both paths (the retrieve branch sets it, the create branch leaves it as whatever it was before the split).
+
+**Attempted fix**: rename Create output to same name as Retrieve output → Studio Pro error: "another variable with the same name already exists" — because the Retrieve happens **before** the split, so the variable is already in scope.
+
+**Attempted fix 2**: Change Variable activity → only works for **primitive types** (String, Boolean, Integer), not object variables.
+
+**Final fix**: Move `SetMicroflow` + `Commit` **inside both branches** rather than after the merge:
+```
+Branch 1 (exists):  SetMicroflow($ExistingOllamaDeployedModel) → Commit
+Branch 2 (new):     SetMicroflow($NewOllamaDeployedModel) → Commit
+→ merge → End
+```
+
+**Key Mendix rule**: A variable survives a merge only if it is assigned in all incoming branches with the same name. The specific name chosen doesn't matter — only consistency across branches does.
+
+---
+
+## Topic: ModelDocumentID and _QualifiedName empty
+
+**You:** Ok, model document ID is also empty / qualified name is also empty
+
+**Claude:**
+
+Both fields are **intentionally empty** for runtime-created models. Confirmed by searching all `.mxunit` files:
+
+- `ModelDocumentID` and `_QualifiedName` are a pair, both defined on `GenAICommons.DeployedModel`
+- The attribute documentation explicitly states: *"Qualified name of the model document for models created in Studio Pro."*
+- They are only set by the Java runtime for models **configured at design time in Studio Pro**
+- For runtime-created models (like `OllamaDeployedModel` created by `ASU_OllamaConnector_Initialize`), both stay empty
+- The admin UI uses this to show a `Studio Pro` vs `In App` badge:
+  ```
+  if trim($currentObject/ModelDocumentID) != '' then 'Studio Pro' else 'In App'
+  ```
+- Access rights for both attributes: `None` for all roles — they are internal infrastructure attributes (leading underscore signals this)
+
+A correct `OllamaDeployedModel` record looks like:
+
+| Attribute | Value |
+|-----------|-------|
+| `Microflow` | `OllamaConnector.ACT_ChatCompletions_WithHistory` |
+| `ModelDocumentID` | *(empty — correct)* |
+| `_QualifiedName` | *(empty — correct)* |
+| `Model` | `llama3` |
+| `DisplayName` | `Ollama Llama3` |
+
